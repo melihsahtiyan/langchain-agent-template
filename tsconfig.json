@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "target": "ES6",
+    "module": "commonjs",
+    "outDir": "./dist",
+    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "moduleResolution": "Node",
+    "baseUrl": "./",
+    "paths": {
+      "@test/*": ["./test/*"],
+      "../../*": ["./src/*"]
+    },
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "moduleDetection": "auto",
+    "sourceMap": true,
+    "removeComments": true,
+    "resolveJsonModule": true
+  },
+  "include": ["./**/*.ts", "./src/**/*", "./test/**/*"]
+}

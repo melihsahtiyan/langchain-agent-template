@@ -1,0 +1,16 @@
+FROM node:18-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 7070
+
+# Start the application in development mode
+CMD ["npm", "run", "docker:dev"]

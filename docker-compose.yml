@@ -1,0 +1,125 @@
+networks:
+  agent-template-network:
+    external: true
+  internal-network:
+    internal: true
+
+services:
+  agent-template-express-server:
+    container_name: agent-template-express-server
+    build: .
+    ports:
+      - "7070:7070"
+    env_file:
+      - .env.docker
+    volumes:
+      - ./src:/app/src
+      - ./nodemon.json:/app/nodemon.json
+      - ./package.json:/app/package.json
+      - ./tsconfig.json:/app/tsconfig.json
+    command: npm run dev
+    depends_on:
+      - agent-template-postgre
+      - agent-template-mongo
+      - agent-template-ollama
+      - agent-template-chromadb
+    networks:
+      - agent-template-network
+      - internal-network
+
+  agent-template-ollama:
+    container_name: agent-template-ollama
+    image: ollama/ollama:latest
+    ports:
+      - 11434:11434
+    volumes:
+      - ollama_volume:/root/ollama
+      - ./entrypoint.sh:/entrypoint.sh
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    tty: true
+    restart: always
+    entrypoint: ["usr/bin/bash", "/entrypoint.sh"]
+    networks:
+      - agent-template-network
+      - internal-network
+    gpus: all
+
+  agent-template-postgre:
+    container_name: agent-template-postgre
+    image: postgres:latest
+    ports:
+      - 6543:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=agent-db
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    networks:
+      - agent-template-network
+      - internal-network
+
+  agent-template-mongo:
+    container_name: agent-template-mongo    
+    image: mongo:latest
+    ports:
+      - 27017:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_DATABASE: agent-db
+    restart: always
+    volumes:
+      - ./mongo-data:/data/db
+    networks:
+      - agent-template-network
+      - internal-network
+
+  agent-template-chromadb:
+    image: chromadb/chroma:latest
+    container_name: agent-template-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/chroma
+    networks:
+      - agent-template-network
+      - internal-network
+
+  agent-template-prometheus:
+    image: prom/prometheus:latest
+    container_name: agent-template-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./.deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    networks:
+      - agent-template-network
+
+  agent-template-grafana:
+    image: grafana/grafana:latest
+    container_name: agent-template-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - agent-template-prometheus
+    networks:
+      - agent-template-network
+
+volumes:
+  ollama_volume:
+  chroma_data:
+  prometheus_data:
+  grafana_data:
