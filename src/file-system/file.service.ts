@@ -88,8 +88,10 @@ export default class FileService implements IFileService {
       // Move the file from temp location to target location
       await fs.writeFile(filePath, file.buffer);
 
-      // Return the relative path from uploads directory
-      return path.join(folder, uniqueFileName);
+      console.log(`File uploaded to: ${filePath}`);
+
+      // Return the full path of the saved file
+      return filePath;
     } catch (error) {
       throw new OperationalError(`File upload failed: ${error.message}`, 500);
     }

@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 import splitTextIntoChunks from "./embedder";
 import { ChromaClient } from "chromadb";
+import { Document } from "langchain/document";
 
 dotenv.config();
 
@@ -38,7 +39,7 @@ export async function initializeVectorStore(): Promise<Chroma> {
 
 export async function addDocumentsToVectorStore(
   vectorStore: Chroma,
-  documents: string
+  documents: Document
 ): Promise<void> {
   console.log("Adding documents to vector store...");
   const docs = await splitTextIntoChunks(documents);

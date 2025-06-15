@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
-import { ChatService } from './chat.service';
+import { Request, Response } from "express";
+import { v4 as uuidv4 } from "uuid";
+import { ChatService } from "./chat.service";
 
 export class ChatController {
   private chatService: ChatService;
@@ -17,30 +17,31 @@ export class ChatController {
   async sendMessage(req: Request, res: Response): Promise<void> {
     try {
       const { message } = req.body;
+      const pdf = req.file || null; // PDF file uploaded via multer
       const sessionId = req.params.sessionId || req.body.sessionId || uuidv4();
 
       if (!message) {
         res.status(400).json({
           success: false,
-          message: 'Message is required'
+          message: "Message is required",
         });
         return;
       }
 
-      const response = await this.chatService.chat(message, sessionId);
+      const response = await this.chatService.chat(message, sessionId, pdf);
 
       res.json({
         success: true,
         data: {
           sessionId,
           message: response.content,
-          timestamp: new Date()
-        }
+          timestamp: new Date(),
+        },
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: `Chat error: ${error.message}`
+        message: `Chat error: ${error.message}`,
       });
     }
   }
@@ -57,7 +58,7 @@ export class ChatController {
       if (!sessionId) {
         res.status(400).json({
           success: false,
-          message: 'Session ID is required'
+          message: "Session ID is required",
         });
         return;
       }
@@ -68,14 +69,14 @@ export class ChatController {
         success: true,
         data: {
           sessionId,
-          messages: history
-        }
+          messages: history,
+        },
       });
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: `Error retrieving chat history: ${error.message}`
+        message: `Error retrieving chat history: ${error.message}`,
       });
     }
   }
-} 
+}

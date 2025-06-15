@@ -29,6 +29,7 @@ grafana_data/
 # IDE specific files
 .idea/
 .vscode/
+.cursor/
 *.swp
 *.swo
 .DS_Store

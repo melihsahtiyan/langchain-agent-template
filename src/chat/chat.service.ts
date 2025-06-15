@@ -1,27 +1,42 @@
-import { ChatMessage, HumanMessage, AIMessage, BaseMessage } from "@langchain/core/messages";
+import {
+  ChatMessage,
+  HumanMessage,
+  AIMessage,
+  BaseMessage,
+} from "@langchain/core/messages";
 import { IChatService } from "./IChatService";
 import dotenv from "dotenv";
-import { Ollama } from "@langchain/ollama";
+import { ChatOllama } from "@langchain/ollama";
 import { ChatSessions } from "../model/ChatSessions";
+import { createAgent } from "../tool-calling/agent";
+import { AgentExecutor } from "langchain/agents";
+import FileService from "../file-system/file.service";
 
 dotenv.config();
 
 export class ChatService implements IChatService {
-  private readonly ollama: Ollama;
+  private readonly ollama: ChatOllama;
   private readonly chatSessions: ChatSessions;
+  private agent: AgentExecutor;
 
   constructor() {
-    this.ollama = new Ollama({
+    this.ollama = new ChatOllama({
       baseUrl: process.env.LM_MODEL_URL,
       model: process.env.LM_MODEL_NAME,
       temperature: parseInt(process.env.LM_MODEL_TEMPERATURE),
     });
     this.chatSessions = new ChatSessions();
+    this.initializeAgent();
+  }
+
+  private async initializeAgent() {
+    this.agent = await createAgent(this.ollama);
   }
 
   async chat(
     message: string,
-    sessionId: string
+    sessionId: string,
+    pdf?: Express.Multer.File
   ): Promise<AIMessage> {
     // Step 1: Create a new chat message
     const userMessage = new HumanMessage(message);
@@ -33,20 +48,38 @@ export class ChatService implements IChatService {
       chatHistory = this.convertToLangChainMessages(storedMessages);
     } catch (error) {
       console.log("No chat history found, starting new conversation");
-      // Creating a new session since this is the first conversation
       await this.createNewSession(sessionId);
     }
 
-    // Step 3: Send the message to the LLM
-    const messages = [...chatHistory, userMessage];
-    const response = await this.ollama.invoke(messages);
+    // Step 3: Process PDF if provided
+    if (pdf) {
+      const fileService = new FileService();
+      const filePath = await fileService.handleUpload(pdf, "docs");
+      const prompt = message + `\n\nAttached PDF file: ${filePath}`;
+      message = prompt;
+    }
 
-    // Step 4: Save the chat message
+    console.log(
+      "--------------------------------PDF INPUT--------------------------------"
+    );
+    console.log(pdf);
+    console.log(
+      "--------------------------------PDF INPUT--------------------------------"
+    );
+
+    // Step 4: Send the message to the agent
+    const result = await this.agent.invoke({
+      input: message,
+      chat_history: chatHistory,
+      pdf: pdf ? pdf : null,
+    });
+
+    // Step 5: Save the chat messages
     await this.saveChatMessage(sessionId, userMessage);
-    const assistantMessage = new AIMessage(response);
+
+    const assistantMessage = new AIMessage(result.output);
     await this.saveChatMessage(sessionId, assistantMessage);
 
-    // Step 5: Return the response
     return assistantMessage;
   }
 
@@ -64,7 +97,10 @@ export class ChatService implements IChatService {
    * @param sessionId Session ID
    * @param message Message to be saved
    */
-  private async saveChatMessage(sessionId: string, message: BaseMessage): Promise<void> {
+  private async saveChatMessage(
+    sessionId: string,
+    message: BaseMessage
+  ): Promise<void> {
     await this.chatSessions.saveMessage(sessionId, message);
     console.log(`Message saved: ${sessionId}`);
   }
@@ -73,12 +109,12 @@ export class ChatService implements IChatService {
    * Converts stored message format to LangChain BaseMessage objects
    * @param messages Array of stored messages
    * @returns Array of LangChain BaseMessage objects
-  **/
+   **/
   private convertToLangChainMessages(messages: any[]): BaseMessage[] {
-    return messages.map(msg => {
-      if (msg.type === 'human') {
+    return messages.map((msg) => {
+      if (msg.type === "human") {
         return new HumanMessage(msg.content);
-      } else if (msg.type === 'ai') {
+      } else if (msg.type === "ai") {
         return new AIMessage(msg.content);
       } else {
         // Handle other message types if needed
@@ -92,11 +128,11 @@ export class ChatService implements IChatService {
     // For now, we'll throw an error as it's not implemented
     throw new Error("Method not implemented.");
   }
-  
+
   async getChatBySessionId(sessionId: string): Promise<any[]> {
     return await this.chatSessions.getSessionMessages(sessionId);
   }
-  
+
   async getChatByUserIdAndSessionId(
     userId: string,
     sessionId: string
