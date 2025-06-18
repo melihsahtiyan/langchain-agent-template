@@ -1,47 +1,82 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
-import { DuckDuckGoSearch } from "@langchain/community/tools/duckduckgo_search";
+import {
+  DuckDuckGoSearch,
+  SafeSearchType,
+} from "@langchain/community/tools/duckduckgo_search";
+import { GoogleCustomSearch } from "@langchain/community/tools/google_custom_search";
 import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { ChatOllama } from "@langchain/ollama";
-import splitTextIntoChunks from "../rag/embedder";
+import { splitDocsIntoChunks } from "../rag/embedder";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 // DuckDuckGo search tool
 export const duckDuckGoSearchTool = new DynamicStructuredTool({
-  name: "duckduckgo_search",
+  name: "duckduckgo-search",
   description:
-    "Searches the web using DuckDuckGo and returns relevant results. Use this tool when you need to find information online.",
+    "Search the web using DuckDuckGo. Use this tool when you need to find current information, news, or facts from the internet.",
   schema: z.object({
-    query: z.string().describe("Search query to find information"),
+    query: z.string().describe("The search query to look up on DuckDuckGo"),
   }),
   func: async ({ query }) => {
     try {
-      console.log("Starting DuckDuckGo search for query:", query);
-      const searchTool = new DuckDuckGoSearch();
-      const searchResults = await searchTool.invoke(query);
-      
-      if (!searchResults || !Array.isArray(searchResults) || searchResults.length === 0) {
-        console.log("No valid search results found for query:", query);
-        return "No results found for your search query.";
+      const searchTool = new DuckDuckGoSearch({
+        maxResults: 5,
+      });
+
+      const results = await searchTool.invoke(query);
+
+      if (!results || results.length === 0) {
+        return "No results found for your query.";
       }
 
-      console.log(`Found ${searchResults.length} results for query:`, query);
-      
-      const formattedResults = searchResults
-        .filter(result => result && typeof result === 'object')
-        .map((result) => ({
-          title: result.title || "No title",
-          link: result.link || "No link",
-          snippet: result.snippet || "No description available",
-        }));
-
-      if (formattedResults.length === 0) {
-        return "No valid results could be processed from the search.";
-      }
-
-      return formattedResults;
+      return results;
     } catch (error) {
-      console.error("Search error:", error);
-      return "An error occurred while searching the web. Please try again later.";
+      console.error("DuckDuckGo search error:", error);
+
+      return "An error occurred while searching. The search service may be temporarily unavailable.";
+    }
+  },
+});
+
+export const googleSearchTool = new DynamicStructuredTool({
+  name: "google-search",
+  description:
+    "Search the web using Google Custom Search API. Use this tool when you need to find current information, news, or facts from the internet.",
+  schema: z.object({
+    query: z.string().describe("The search query to look up on Google"),
+  }),
+  func: async ({ query }) => {
+    try {
+      if (!process.env.GOOGLE_SEARCH_API_KEY || !process.env.GOOGLE_CSE_ID) {
+        return "Google search is not configured. Please set GOOGLE_SEARCH_API_KEY and GOOGLE_CSE_ID environment variables.";
+      }
+
+      console.log(
+        "----------------------------------------------------------------------------"
+      );
+      console.log("Google search query:", query);
+      console.log(
+        "----------------------------------------------------------------------------"
+      );
+
+      const searchTool = new GoogleCustomSearch({
+        apiKey: process.env.GOOGLE_SEARCH_API_KEY,
+        googleCSEId: process.env.GOOGLE_CSE_ID,
+      });
+
+      const results = await searchTool.invoke(query);
+
+      if (!results || results.length === 0) {
+        return "No results found for your query.";
+      }
+
+      return results;
+    } catch (error) {
+      console.error("Google search error:", error);
+      return "An error occurred while searching with Google.";
     }
   },
 });
@@ -60,9 +95,22 @@ export const createPdfSummarizer = (ollama: ChatOllama) =>
         const loader = new PDFLoader(filePath);
         const docs = await loader.load();
 
-        const textSplitter = await splitTextIntoChunks(docs[0]);
+        // Process all pages of the PDF
+        const allChunks = await Promise.all(
+          docs.map(async (doc) => {
+            const chunks = await splitDocsIntoChunks(doc);
+            return chunks;
+          })
+        );
+
+        // Flatten the array of chunks and join their content
+        const combinedContent = allChunks
+          .flat()
+          .map((chunk) => chunk.pageContent)
+          .join("\n\n");
+
         const summary = await ollama.invoke(
-          `Please provide a clear and concise summary of the following text in English. Focus on the main points and key information:\n\n${textSplitter[0].pageContent}`
+          `Please provide a clear and concise summary of the following text in the requested language. Focus on the main points and key information:\n\n${combinedContent}`
         );
 
         return summary.content;
@@ -72,3 +120,25 @@ export const createPdfSummarizer = (ollama: ChatOllama) =>
       }
     },
   });
+
+// Get current date tool
+export const getCurrentDateTool = new DynamicStructuredTool({
+  name: "get_current_date",
+  description:
+    "Returns the current date and time information. Use this tool when you need to know the current date or time.",
+  schema: z.object({}),
+  func: async () => {
+    try {
+      const now = new Date();
+      return {
+        date: now.toLocaleDateString(),
+        time: now.toLocaleTimeString(),
+        timestamp: now.toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }.toString();
+    } catch (error) {
+      console.error("Error getting current date:", error);
+      return "An error occurred while getting the current date.";
+    }
+  },
+});

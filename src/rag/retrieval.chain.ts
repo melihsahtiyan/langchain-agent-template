@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 import { ChatOllama } from "@langchain/ollama";
 import {
-  addDocumentsToVectorStore,
+  addTextToVectorStore,
   deleteCollection,
   initializeVectorStore,
 } from "./vectorStore";
@@ -26,7 +26,7 @@ export async function runRagQuery(
     "---------------------------------------------------------------"
   );
 
-  await addDocumentsToVectorStore(vectorStore, userPrompt);
+  await addTextToVectorStore(vectorStore, userPrompt);
 
   const retriever: VectorStoreRetriever<Chroma> = vectorStore.asRetriever();
 

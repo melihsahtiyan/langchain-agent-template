@@ -1,7 +1,7 @@
 import { OllamaEmbeddings } from "@langchain/ollama";
 import dotenv from "dotenv";
 import { Chroma } from "@langchain/community/vectorstores/chroma";
-import splitTextIntoChunks from "./embedder";
+import { splitDocsIntoChunks, splitTextIntoChunks } from "./embedder";
 import { ChromaClient } from "chromadb";
 import { Document } from "langchain/document";
 
@@ -42,7 +42,17 @@ export async function addDocumentsToVectorStore(
   documents: Document
 ): Promise<void> {
   console.log("Adding documents to vector store...");
-  const docs = await splitTextIntoChunks(documents);
+  const docs = await splitDocsIntoChunks(documents);
+  await vectorStore.addDocuments(docs);
+  console.log("Documents added successfully");
+}
+
+export async function addTextToVectorStore(
+  vectorStore: Chroma,
+  text: string
+): Promise<void> {
+  console.log("Adding documents to vector store...");
+  const docs = await splitTextIntoChunks(text);
   await vectorStore.addDocuments(docs);
   console.log("Documents added successfully");
 }

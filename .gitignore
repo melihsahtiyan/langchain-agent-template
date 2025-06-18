@@ -45,6 +45,7 @@ data/
 mongo-data/
 chroma_data/
 entrypoint.sh
+.deploy/
 
 # Model files and cache
 models/

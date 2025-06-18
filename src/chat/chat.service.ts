@@ -57,20 +57,20 @@ export class ChatService implements IChatService {
       const filePath = await fileService.handleUpload(pdf, "docs");
       const prompt = message + `\n\nAttached PDF file: ${filePath}`;
       message = prompt;
-    }
 
-    console.log(
-      "--------------------------------PDF INPUT--------------------------------"
-    );
-    console.log(pdf);
-    console.log(
-      "--------------------------------PDF INPUT--------------------------------"
-    );
+      console.log(
+        "--------------------------------PDF INPUT--------------------------------"
+      );
+      console.log(pdf);
+      console.log(
+        "--------------------------------PDF INPUT--------------------------------"
+      );
+    }
 
     // Step 4: Send the message to the agent
     const result = await this.agent.invoke({
       input: message,
-      chat_history: chatHistory,
+      chat_history: chatHistory.length > 1 ? chatHistory : [userMessage],
       pdf: pdf ? pdf : null,
     });
 
@@ -122,21 +122,7 @@ export class ChatService implements IChatService {
       }
     });
   }
-
-  async getAllChatByUserId(userId: string): Promise<BaseMessage[]> {
-    // This would need to aggregate all messages from all sessions for a user
-    // For now, we'll throw an error as it's not implemented
-    throw new Error("Method not implemented.");
-  }
-
   async getChatBySessionId(sessionId: string): Promise<any[]> {
     return await this.chatSessions.getSessionMessages(sessionId);
-  }
-
-  async getChatByUserIdAndSessionId(
-    userId: string,
-    sessionId: string
-  ): Promise<ChatMessage> {
-    throw new Error("Method not implemented.");
   }
 }

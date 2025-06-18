@@ -144,6 +144,13 @@ The template includes Prometheus metrics for monitoring:
 - Memory usage
 - Error rates
 
+## 🐞 Known Issues
+
+### DuckDuckGo Search Tool
+
+- The DuckDuckGo search tool is currently unreliable due to issues with the underlying `duckduckgo-search` and `duck-duck-scrape` packages (frequent parsing errors and service changes).
+- If you encounter errors or failed searches, see [DuckDuckGo Search Troubleshooting](./docs/duckduckgo-troubleshooting.md) for details, workarounds, and alternative solutions.
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
